@@ -67,4 +67,4 @@ function createLogger(s3OutputPath = null) {
     return logger;
 }
 
-module.exports = createLogger;
+exports.createLogger = createLogger;
