@@ -1,8 +1,8 @@
 
-import winston from 'winston';
-import S3Transport from "winston-s3-transport";
-import { v4 as uuidv4 } from "uuid";
-import { format } from "date-fns";
+const winston = require('winston');
+const S3Transport = require('winston-s3-transport');
+const { v4: uuidv4 } = require('uuid');
+const { format } = require('date-fns');
 const { combine, timestamp, errors } = winston.format;
 
 
