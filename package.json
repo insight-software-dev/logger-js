@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/insight-software-dev/logger-js/issues"
   },
-  "homepage": "https://github.com/insight-software-dev/logger-js#readme"
+  "homepage": "https://github.com/insight-software-dev/logger-js#readme",
+  "dependencies": {
+    "winston": "^3.17.0",
+    "winston-s3": "^1.0.0"
+  }
 }
