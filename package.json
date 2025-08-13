@@ -4,7 +4,8 @@
   "description": "Default logger for Node JS applications",
   "main": "logger.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint '**/*.js?(x)'"
   },
   "repository": {
     "type": "git",
@@ -17,7 +18,16 @@
   },
   "homepage": "https://github.com/insight-software-dev/logger-js#readme",
   "dependencies": {
+    "date-fns": "^4.1.0",
+    "uuid": "^11.1.0",
     "winston": "^3.17.0",
-    "winston-s3": "^1.0.0"
-  }
+    "winston-s3-transport": "^2.0.10"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "eslint": "^9.33.0",
+    "globals": "^16.3.0",
+    "typescript-eslint": "^8.39.1"
+  },
+  "type": "module"
 }

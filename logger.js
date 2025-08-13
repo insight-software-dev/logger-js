@@ -1,6 +1,9 @@
 
-const winston = require('winston');
-const { combine, timestamp, json, errors, cli } = winston.format;
+import winston from 'winston';
+import S3Transport from "winston-s3-transport";
+import { v4 as uuidv4 } from "uuid";
+import { format } from "date-fns";
+const { combine, timestamp, errors } = winston.format;
 
 
 let logger = null;
@@ -9,16 +12,34 @@ const wrapper = ( original ) => {
     return (...args) => original(args.join(" "));
 };
 
+function createLogger(s3OutputPath = null) {
+    /**
+     * Creates a logger instance with optional S3 output.
+     * @param {Object} s3OutputPath - Optional S3 output configuration.
+     * @param {string} s3OutputPath.bucketName - The name of the S3 bucket.
+     * @param {string} s3OutputPath.path - The path in the S3 bucket where logs will be stored.
+     * @returns {Object} The logger instance. Optional, because console.log, console.info, console.warn, 
+     *              console.error, console.debug are also available.
+     */
 
-function createLogger(withS3Output = false) {
-    let transports = [new winston.transports.Console()];
-    if (withS3Output) {
-        const S3Transport = require('winston-s3');
-        transports.push(new S3Transport({
-            bucket: 'your-s3-bucket-name',
-            level: 'info',
-            format: combine(errors({ stack: true }), timestamp(), json())
-        }));
+    let transports = [new (winston.transports.Console)({'timestamp':true})];
+    if (s3OutputPath) {
+        const bucketName = s3OutputPath.bucketName;
+        const s3Path = s3OutputPath.path;
+        const s3Transport = new S3Transport({
+            s3TransportConfig: {
+                bucket: bucketName,
+                bucketPath: () => {
+                    const date = new Date();
+                    const timestamp = format(date, "yyyyMMddhhmmss");
+                    const uuid = uuidv4();
+                    // The bucket path in which the log is uploaded.
+                    // You can create a bucket path by combining `group`, `timestamp`, and `uuid` values.
+                    return `/${s3Path}/logs/${timestamp}/${uuid}.log`;
+                },
+            },
+        });
+        transports.push(s3Transport);
     }
     logger = winston.createLogger({
         level: 'info',
@@ -30,9 +51,7 @@ function createLogger(withS3Output = false) {
                 return `${info.timestamp} ${info.level} ${info.message}`;
             })
         ),
-        transports: [
-            new (winston.transports.Console)({'timestamp':true})
-        ],
+        transports: transports,
     });
     logger.error = wrapper(logger.error);
     logger.warn = wrapper(logger.warn);
@@ -48,4 +67,4 @@ function createLogger(withS3Output = false) {
     return logger;
 }
 
-exports.createLogger = createLogger;
+export default createLogger;
