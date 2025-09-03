@@ -12,7 +12,7 @@ const wrapper = ( original ) => {
     return (...args) => original(args.join(" "));
 };
 
-function createLogger(s3OutputPath = null) {
+function createLogger(expressApp = null, s3OutputPath = null) {
     /**
      * Creates a logger instance with optional S3 output.
      * @param {Object} s3OutputPath - Optional S3 output configuration.
@@ -64,6 +64,17 @@ function createLogger(s3OutputPath = null) {
     console.warn = (...args) => logger.warn.call(logger, ...args);
     console.error = (...args) => logger.error.call(logger, ...args);
     console.debug = (...args) => logger.debug.call(logger, ...args);
+
+    logger.stream = {
+        write: function(message, encoding){
+            logger.info(message);
+        }
+    };
+    if (expressApp){
+        expressApp.use(require("morgan")("combined", { "stream": logger.stream }));
+    }
+    // const morgan = require('morgan')(':method :url :status :res[content-length] - :response-time ms');
+
     return logger;
 }
 
