@@ -13,6 +13,8 @@ const wrapper = ( original ) => {
         args.forEach((arg, index) => {
             if (arg instanceof Error) {
                 args[index] = ('' + arg) + arg.stack;
+            } else if (typeof arg === 'object') {
+                args[index] = JSON.stringify(arg);
             }
         });
         original(args.join(" "));
