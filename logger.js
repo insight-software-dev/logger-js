@@ -9,7 +9,14 @@ const { combine, timestamp, errors } = winston.format;
 let logger = null;
 
 const wrapper = ( original ) => {
-    return (...args) => original(args.join(" "));
+    return (...args) => {
+        args.forEach((arg, index) => {
+            if (arg instanceof Error) {
+                args[index] = ('' + arg) + arg.stack;
+            }
+        });
+        original(args.join(" "));
+    };
 };
 
 function createLogger(expressApp = null, s3OutputPath = null) {
@@ -81,4 +88,3 @@ function createLogger(expressApp = null, s3OutputPath = null) {
 }
 
 module.exports = createLogger;
-
