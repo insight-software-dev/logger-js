@@ -71,7 +71,9 @@ function createLogger(expressApp = null, s3OutputPath = null) {
         }
     };
     if (expressApp){
-        expressApp.use(require("morgan")("combined", { "stream": logger.stream }));
+        expressApp.use(require("morgan")(
+            "short", { "stream": logger.stream }
+        ));
     }
     // const morgan = require('morgan')(':method :url :status :res[content-length] - :response-time ms');
 
