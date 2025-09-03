@@ -1,5 +1,6 @@
 
 const winston = require('winston');
+var split = require('split')
 const S3Transport = require('winston-s3-transport');
 const { v4: uuidv4 } = require('uuid');
 const { format } = require('date-fns');
@@ -9,10 +10,19 @@ const { combine, timestamp, errors } = winston.format;
 let logger = null;
 
 const wrapper = ( original ) => {
-    return (...args) => original(args.join(" "));
+    return (...args) => {
+        args.forEach((arg, index) => {
+            if (arg instanceof Error) {
+                args[index] = ('' + arg) + arg.stack;
+            } else if (typeof arg === 'object') {
+                args[index] = JSON.stringify(arg);
+            }
+        });
+        original(args.join(" "));
+    };
 };
 
-function createLogger(s3OutputPath = null) {
+function createLogger(expressApp = null, s3OutputPath = null) {
     /**
      * Creates a logger instance with optional S3 output.
      * @param {Object} s3OutputPath - Optional S3 output configuration.
@@ -64,8 +74,20 @@ function createLogger(s3OutputPath = null) {
     console.warn = (...args) => logger.warn.call(logger, ...args);
     console.error = (...args) => logger.error.call(logger, ...args);
     console.debug = (...args) => logger.debug.call(logger, ...args);
+
+    logger.stream = {
+        write: split().on('data', function(message, encoding){
+            logger.info(message);
+        })
+    };
+    if (expressApp){
+        expressApp.use(require("morgan")(
+            "short", { "stream": logger.stream }
+        ));
+    }
+    // const morgan = require('morgan')(':method :url :status :res[content-length] - :response-time ms');
+
     return logger;
 }
 
 module.exports = createLogger;
-
