@@ -75,11 +75,9 @@ function createLogger(expressApp = null, s3OutputPath = null) {
     console.error = (...args) => logger.error.call(logger, ...args);
     console.debug = (...args) => logger.debug.call(logger, ...args);
 
-    logger.stream = {
-        write: split().on('data', function(message, encoding){
-            logger.info(message);
-        })
-    };
+    logger.stream = split().on('data', function(message, encoding){
+        logger.info(message);
+    });
     if (expressApp){
         expressApp.use(require("morgan")(
             "short", { "stream": logger.stream }
