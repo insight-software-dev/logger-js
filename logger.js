@@ -1,5 +1,4 @@
 const winston = require('winston');
-const split = require('split');
 const S3Transport = require('winston-s3-transport');
 const { v4: uuidv4 } = require('uuid');
 const { format } = require('date-fns');
@@ -93,9 +92,9 @@ function createLogger(expressApp = null, s3OutputPath = null, options = {}) {
 
     // Stream for Morgan HTTP logging
     logger.stream = {
-        write: split().on('data', function(message) {
-            logger.info(message);
-        })
+        write: function(message) {
+            logger.info(message.trim());
+        }
     };
 
     if (expressApp) {
