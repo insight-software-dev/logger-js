@@ -1,15 +1,15 @@
-
 const winston = require('winston');
-var split = require('split')
+const split = require('split');
 const S3Transport = require('winston-s3-transport');
 const { v4: uuidv4 } = require('uuid');
 const { format } = require('date-fns');
 const { combine, timestamp, errors } = winston.format;
 
+const LOG_LEVELS = ['error', 'warn', 'info', 'verbose', 'debug', 'silly'];
 
 let logger = null;
 
-const wrapper = ( original ) => {
+const wrapper = (original) => {
     return (...args) => {
         args.forEach((arg, index) => {
             if (arg instanceof Error) {
@@ -22,17 +22,28 @@ const wrapper = ( original ) => {
     };
 };
 
-function createLogger(expressApp = null, s3OutputPath = null) {
-    /**
-     * Creates a logger instance with optional S3 output.
-     * @param {Object} s3OutputPath - Optional S3 output configuration.
-     * @param {string} s3OutputPath.bucketName - The name of the S3 bucket.
-     * @param {string} s3OutputPath.path - The path in the S3 bucket where logs will be stored.
-     * @returns {Object} The logger instance. Optional, because console.log, console.info, console.warn, 
-     *              console.error, console.debug are also available.
-     */
+/**
+ * Creates a logger instance with optional S3 output and configurable options.
+ * @param {Object} expressApp - Optional Express app instance for Morgan HTTP logging.
+ * @param {Object} s3OutputPath - Optional S3 output configuration.
+ * @param {string} s3OutputPath.bucketName - The name of the S3 bucket.
+ * @param {string} s3OutputPath.path - The path in the S3 bucket where logs will be stored.
+ * @param {Object} options - Optional configuration options.
+ * @param {string} options.logLevel - Log level: 'error', 'warn', 'info', 'verbose', 'debug', 'silly'. Defaults to LOG_LEVEL env var or 'info'.
+ * @param {boolean} options.overrideConsole - Whether to override console.* methods. Defaults to true.
+ * @returns {Object} The logger instance with error, warn, info, verbose, debug, silly methods.
+ */
+function createLogger(expressApp = null, s3OutputPath = null, options = {}) {
+    const logLevel = options.logLevel || process.env.LOG_LEVEL || 'info';
+    const overrideConsole = options.overrideConsole !== false;
 
-    let transports = [new (winston.transports.Console)({'timestamp':true})];
+    // Validate log level
+    if (!LOG_LEVELS.includes(logLevel)) {
+        console.warn(`Invalid log level "${logLevel}", defaulting to "info". Valid levels: ${LOG_LEVELS.join(', ')}`);
+    }
+
+    let transports = [new (winston.transports.Console)({'timestamp': true})];
+
     if (s3OutputPath) {
         const bucketName = s3OutputPath.bucketName;
         const s3Path = s3OutputPath.path;
@@ -41,18 +52,17 @@ function createLogger(expressApp = null, s3OutputPath = null) {
                 bucket: bucketName,
                 bucketPath: () => {
                     const date = new Date();
-                    const timestamp = format(date, "yyyyMMddhhmmss");
+                    const ts = format(date, "yyyyMMddhhmmss");
                     const uuid = uuidv4();
-                    // The bucket path in which the log is uploaded.
-                    // You can create a bucket path by combining `group`, `timestamp`, and `uuid` values.
-                    return `/${s3Path}/logs/${timestamp}/${uuid}.log`;
+                    return `/${s3Path}/logs/${ts}/${uuid}.log`;
                 },
             },
         });
         transports.push(s3Transport);
     }
+
     logger = winston.createLogger({
-        level: 'info',
+        level: LOG_LEVELS.includes(logLevel) ? logLevel : 'info',
         format: combine(
             timestamp(),
             errors({ stack: true }),
@@ -63,29 +73,36 @@ function createLogger(expressApp = null, s3OutputPath = null) {
         ),
         transports: transports,
     });
+
+    // Wrap logger methods to handle objects and errors nicely
     logger.error = wrapper(logger.error);
     logger.warn = wrapper(logger.warn);
     logger.info = wrapper(logger.info);
     logger.verbose = wrapper(logger.verbose);
     logger.debug = wrapper(logger.debug);
     logger.silly = wrapper(logger.silly);
-    console.log = (...args) => logger.info.call(logger, ...args);
-    console.info = (...args) => logger.info.call(logger, ...args);
-    console.warn = (...args) => logger.warn.call(logger, ...args);
-    console.error = (...args) => logger.error.call(logger, ...args);
-    console.debug = (...args) => logger.debug.call(logger, ...args);
 
+    // Override console methods if enabled (default)
+    if (overrideConsole) {
+        console.log = (...args) => logger.info.call(logger, ...args);
+        console.info = (...args) => logger.info.call(logger, ...args);
+        console.warn = (...args) => logger.warn.call(logger, ...args);
+        console.error = (...args) => logger.error.call(logger, ...args);
+        console.debug = (...args) => logger.debug.call(logger, ...args);
+    }
+
+    // Stream for Morgan HTTP logging
     logger.stream = {
-        write: split().on('data', function(message, encoding){
+        write: split().on('data', function(message) {
             logger.info(message);
         })
     };
-    if (expressApp){
+
+    if (expressApp) {
         expressApp.use(require("morgan")(
             "short", { "stream": logger.stream }
         ));
     }
-    // const morgan = require('morgan')(':method :url :status :res[content-length] - :response-time ms');
 
     return logger;
 }
